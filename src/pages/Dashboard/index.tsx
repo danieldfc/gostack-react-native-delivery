@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Image, ScrollView } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Feather';
@@ -51,31 +51,49 @@ const Dashboard: React.FC = () => {
   >();
   const [searchValue, setSearchValue] = useState('');
 
-  const navigation = useNavigation();
+  const { navigate } = useNavigation();
 
-  async function handleNavigate(id: number): Promise<void> {
-    // Navigate do ProductDetails page
+  const handleNavigate = useCallback(
+    async (id: number) => {
+      navigate('FoodDetails', { id });
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    async function loadCategories(): Promise<void> {
+      const response = await api.get('categories');
+
+      setCategories(response.data);
+    }
+
+    loadCategories();
+  }, [selectedCategory, searchValue]);
+
+  function handleSelectCategory(id: number): void {
+    setSelectedCategory(state => (state !== id ? id : undefined));
   }
 
   useEffect(() => {
     async function loadFoods(): Promise<void> {
-      // Load Foods from API
+      const response = await api.get<Food[]>('foods', {
+        params: {
+          category_like: selectedCategory,
+          name_like: searchValue,
+        },
+      });
+
+      const allFoods = response.data;
+      const loadFormattedPrice = allFoods.map(food => ({
+        ...food,
+        formattedPrice: formatValue(food.price),
+      }));
+
+      setFoods(loadFormattedPrice);
     }
 
     loadFoods();
   }, [selectedCategory, searchValue]);
-
-  useEffect(() => {
-    async function loadCategories(): Promise<void> {
-      // Load categories from API
-    }
-
-    loadCategories();
-  }, []);
-
-  function handleSelectCategory(id: number): void {
-    // Select / deselect category
-  }
 
   return (
     <Container>
@@ -85,7 +103,7 @@ const Dashboard: React.FC = () => {
           name="log-out"
           size={24}
           color="#FFB84D"
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigate('Home')}
         />
       </Header>
       <FilterContainer>
